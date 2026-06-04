@@ -1,24 +1,29 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 import httpx
 
 app = FastAPI(title="Motor de Recomendación - Tesis Huancayo")
 
-# Configuración: Stock de Seguridad (15%)
+# --- CONFIGURACIÓN DE CORS (OPCIÓN A) ---
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Permite conexiones externas desde Windows
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 STOCK_SEGURIDAD_PORCENTAJE = 0.15 
 
 @app.get("/recomendar/{sku_id}")
 async def recomendar(sku_id: str, stock_actual: float):
-    # Definimos un timeout de 30 segundos para darle tiempo a Prophet de procesar
     timeout = httpx.Timeout(30.0, read=30.0)
     
     async with httpx.AsyncClient(timeout=timeout) as client:
-        # Llamada al microservicio de pronóstico en el puerto 8002
         response = await client.get(f"http://localhost:8002/predict/{sku_id}")
         data_pronostico = response.json()
     
     pronostico = data_pronostico["pronostico_proximo_periodo"]
-    
-    # Lógica Logística
     stock_seguridad = pronostico * STOCK_SEGURIDAD_PORCENTAJE
     cantidad_a_comprar = pronostico + stock_seguridad - stock_actual
     
